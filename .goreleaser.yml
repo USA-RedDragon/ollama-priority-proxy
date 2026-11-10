@@ -1,0 +1,60 @@
+---
+version: 2
+
+project_name: ollama-priority-proxy
+
+release:
+  extra_files:
+    - glob: ./LICENSE
+  github:
+    owner: USA-RedDragon
+    name: "{{ .ProjectName }}"
+
+dockers_v2:
+  - images:
+      - "ghcr.io/usa-reddragon/{{ .ProjectName }}"
+    tags:
+      - "{{ .Tag }}"
+      - "v{{ .Major }}"
+      - "v{{ .Major }}.{{ .Minor }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
+      - linux/arm/v6
+      - linux/arm/v7
+    labels:
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.licenses": MIT
+      "org.opencontainers.image.url": "https://github.com/USA-RedDragon/{{ .ProjectName }}"
+      "org.opencontainers.image.source": "https://github.com/USA-RedDragon/{{ .ProjectName }}"
+    flags:
+      - "--pull"
+
+builds:
+  - main: .
+    binary: "{{ .ProjectName }}"
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm
+      - arm64
+      - riscv64
+    goarm:
+      - "6"
+      - "7"
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+    flags:
+      - -trimpath
+
+milestones:
+  - close: true
