@@ -10,7 +10,7 @@ http:
 # Prometheus metrics listener
 metrics:
   # Serve Prometheus metrics on /metrics
-  enabled: true
+  enabled: false
   # Address for the metrics listener
   bind: "[::]"
   # Port for the metrics listener

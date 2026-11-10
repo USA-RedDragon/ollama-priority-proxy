@@ -66,7 +66,7 @@ func configApplyDefaults(cfg *Config, sep string, set configulator.SetOrigin) er
 	set("http.bind", configulator.LayerDefault, "default tag")
 	cfg.HTTP.Port = uint16(11434)
 	set("http.port", configulator.LayerDefault, "default tag")
-	cfg.Metrics.Enabled = true
+	cfg.Metrics.Enabled = false
 	set("metrics.enabled", configulator.LayerDefault, "default tag")
 	cfg.Metrics.Bind = "[::]"
 	set("metrics.bind", configulator.LayerDefault, "default tag")
@@ -311,7 +311,7 @@ func configRegisterPFlags(fs *pflag.FlagSet, o *cpflag.Options) error {
 	fs.String(names[0], "info", "Logging level. One of debug, info, warn or error")
 	fs.String(names[1], "[::]", "Address to listen on. The default, [::], listens on all interfaces")
 	fs.Uint16(names[2], 11434, "Port to serve the proxy, /health and /ready on")
-	fs.Bool(names[3], true, "Serve Prometheus metrics on /metrics")
+	fs.Bool(names[3], false, "Serve Prometheus metrics on /metrics")
 	fs.String(names[4], "[::]", "Address for the metrics listener")
 	fs.Uint16(names[5], 9090, "Port for the metrics listener")
 	fs.String(names[6], "http://127.0.0.1:11434", "Base URL of the Ollama server")

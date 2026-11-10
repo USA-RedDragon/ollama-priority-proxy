@@ -40,7 +40,7 @@ type HTTP struct {
 
 // Metrics configures the Prometheus metrics listener.
 type Metrics struct {
-	Enabled bool   `name:"enabled" default:"true" description:"Serve Prometheus metrics on /metrics"`
+	Enabled bool   `name:"enabled" default:"false" description:"Serve Prometheus metrics on /metrics"`
 	Bind    string `name:"bind" default:"[::]" description:"Address for the metrics listener"`
 	Port    uint16 `name:"port" default:"9090" description:"Port for the metrics listener"`
 }

@@ -44,7 +44,7 @@ func TestDefaults(t *testing.T) {
 	want := config.Config{
 		LogLevel: config.LogLevelInfo,
 		HTTP:     config.HTTP{Bind: "[::]", Port: 11434},
-		Metrics:  config.Metrics{Enabled: true, Bind: "[::]", Port: 9090},
+		Metrics:  config.Metrics{Bind: "[::]", Port: 9090},
 		Upstream: config.Upstream{URL: "http://127.0.0.1:11434"},
 		Low:      config.Low{MaxInFlight: 1, IdleGrace: 2 * time.Second},
 		GenerationPaths: []string{
@@ -136,7 +136,7 @@ func TestValidate(t *testing.T) {
 		{"grace", func(c *config.Config) { c.Low.IdleGrace = -time.Second }, config.ErrNegativeDuration},
 		{"max wait", func(c *config.Config) { c.Low.MaxWait = -time.Second }, config.ErrNegativeDuration},
 		{"path", func(c *config.Config) { c.GenerationPaths = []string{"api/chat"} }, config.ErrInvalidGenerationPath},
-		{"ports", func(c *config.Config) { c.Metrics.Port = c.HTTP.Port }, config.ErrPortConflict},
+		{"ports", func(c *config.Config) { c.Metrics.Enabled = true; c.Metrics.Port = c.HTTP.Port }, config.ErrPortConflict},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
