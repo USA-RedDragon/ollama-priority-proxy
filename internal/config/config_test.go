@@ -43,7 +43,7 @@ func TestDefaults(t *testing.T) {
 	cfg := defaults(t)
 	want := config.Config{
 		LogLevel: config.LogLevelInfo,
-		HTTP:     config.HTTP{Bind: "[::]", Port: 11434},
+		HTTP:     config.HTTP{Bind: "[::]", Port: 11434, ShutdownTimeout: 5 * time.Minute},
 		Metrics:  config.Metrics{Bind: "[::]", Port: 9090},
 		Upstream: config.Upstream{URL: "http://127.0.0.1:11434"},
 		Low:      config.Low{MaxInFlight: 1, IdleGrace: 2 * time.Second},

@@ -7,6 +7,8 @@ http:
   bind: "[::]"
   # Port to serve the proxy, /health and /ready on
   port: 11434
+  # How long a stopping proxy waits for in-flight requests, such as long generations, before it closes them
+  shutdown-timeout: "5m"
 # Prometheus metrics listener
 metrics:
   # Serve Prometheus metrics on /metrics

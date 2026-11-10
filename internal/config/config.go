@@ -34,8 +34,9 @@ type Config struct {
 
 // HTTP configures the proxy listener.
 type HTTP struct {
-	Bind string `name:"bind" default:"[::]" description:"Address to listen on. The default, [::], listens on all interfaces"`
-	Port uint16 `name:"port" default:"11434" description:"Port to serve the proxy, /health and /ready on"`
+	Bind            string        `name:"bind" default:"[::]" description:"Address to listen on. The default, [::], listens on all interfaces"`
+	Port            uint16        `name:"port" default:"11434" description:"Port to serve the proxy, /health and /ready on"`
+	ShutdownTimeout time.Duration `name:"shutdown-timeout" default:"5m" description:"How long a stopping proxy waits for in-flight requests, such as long generations, before it closes them"`
 }
 
 // Metrics configures the Prometheus metrics listener.

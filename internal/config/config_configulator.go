@@ -21,8 +21,9 @@ import (
 )
 
 type hTTPShadow struct {
-	Bind *string `json:"bind" toml:"bind" yaml:"bind"`
-	Port *uint16 `json:"port" toml:"port" yaml:"port"`
+	Bind            *string        `json:"bind"             toml:"bind"             yaml:"bind"`
+	Port            *uint16        `json:"port"             toml:"port"             yaml:"port"`
+	ShutdownTimeout *impl.Duration `json:"shutdown-timeout" toml:"shutdown-timeout" yaml:"shutdown-timeout"`
 }
 
 type metricsShadow struct {
@@ -66,6 +67,8 @@ func configApplyDefaults(cfg *Config, sep string, set configulator.SetOrigin) er
 	set("http.bind", configulator.LayerDefault, "default tag")
 	cfg.HTTP.Port = uint16(11434)
 	set("http.port", configulator.LayerDefault, "default tag")
+	cfg.HTTP.ShutdownTimeout = time.Duration(int64(300000000000))
+	set("http.shutdown-timeout", configulator.LayerDefault, "default tag")
 	cfg.Metrics.Enabled = false
 	set("metrics.enabled", configulator.LayerDefault, "default tag")
 	cfg.Metrics.Bind = "[::]"
@@ -112,6 +115,17 @@ func (s *configShadow) applyTo(cfg *Config, _ string, set configulator.SetOrigin
 		if s.HTTP.Port != nil {
 			cfg.HTTP.Port = *s.HTTP.Port
 			set("http.port", configulator.LayerFile, file)
+		}
+		if s.HTTP.ShutdownTimeout != nil {
+			v, ok := s.HTTP.ShutdownTimeout.Value()
+			if !ok {
+				return &configulator.OpaqueSpellingError{
+					Hint: "\"30s\"",
+					Path: "http.shutdown-timeout",
+				}
+			}
+			cfg.HTTP.ShutdownTimeout = v
+			set("http.shutdown-timeout", configulator.LayerFile, file)
 		}
 	}
 	if s.Metrics != nil {
@@ -190,6 +204,19 @@ func configApplyEnv(cfg *Config, ec configulator.EnvContext, set configulator.Se
 		}
 		cfg.HTTP.Port = uint16(p)
 		set("http.port", configulator.LayerEnv, n)
+	}
+	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "http", "shutdown-timeout"); ok {
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return &configulator.ParseError{
+				Err:    err,
+				Path:   "http.shutdown-timeout",
+				Source: n,
+				Value:  v,
+			}
+		}
+		cfg.HTTP.ShutdownTimeout = d
+		set("http.shutdown-timeout", configulator.LayerEnv, n)
 	}
 	if n, v, ok := impl.LookupEnv(ec.Getenv, ec.Opts.Prefix, ec.Opts.Separator, "metrics", "enabled"); ok {
 		p, err := strconv.ParseBool(v)
@@ -285,6 +312,7 @@ func configRegisterPFlags(fs *pflag.FlagSet, o *cpflag.Options) error {
 		"log-level",
 		"http" + o.Separator + "bind",
 		"http" + o.Separator + "port",
+		"http" + o.Separator + "shutdown-timeout",
 		"metrics" + o.Separator + "enabled",
 		"metrics" + o.Separator + "bind",
 		"metrics" + o.Separator + "port",
@@ -311,15 +339,16 @@ func configRegisterPFlags(fs *pflag.FlagSet, o *cpflag.Options) error {
 	fs.String(names[0], "info", "Logging level. One of debug, info, warn or error")
 	fs.String(names[1], "[::]", "Address to listen on. The default, [::], listens on all interfaces")
 	fs.Uint16(names[2], 11434, "Port to serve the proxy, /health and /ready on")
-	fs.Bool(names[3], false, "Serve Prometheus metrics on /metrics")
-	fs.String(names[4], "[::]", "Address for the metrics listener")
-	fs.Uint16(names[5], 9090, "Port for the metrics listener")
-	fs.String(names[6], "http://127.0.0.1:11434", "Base URL of the Ollama server")
-	fs.Var(impl.NewUint(1), names[7], "Most low priority generation requests sent to the upstream at once")
-	fs.Duration(names[8], time.Duration(int64(2000000000)), "How long no high priority generation request must be in flight before a low priority one is sent, so the steps of an agent's turn are not split by background work. Longer values delay background work more; 0 disables")
-	fs.Duration(names[9], time.Duration(int64(0)), "How long a low priority request may wait in the queue before it fails with 503 and Retry-After; 0 waits forever")
-	fs.StringSlice(names[10], nil, "Upstream paths whose POST requests are scheduled by priority. Other requests go straight to the upstream")
-	fs.Lookup(names[10]).DefValue = "[/v1/chat/completions,/v1/completions,/v1/embeddings,/v1/responses,/api/chat,/api/generate,/api/embed,/api/embeddings]"
+	fs.Duration(names[3], time.Duration(int64(300000000000)), "How long a stopping proxy waits for in-flight requests, such as long generations, before it closes them")
+	fs.Bool(names[4], false, "Serve Prometheus metrics on /metrics")
+	fs.String(names[5], "[::]", "Address for the metrics listener")
+	fs.Uint16(names[6], 9090, "Port for the metrics listener")
+	fs.String(names[7], "http://127.0.0.1:11434", "Base URL of the Ollama server")
+	fs.Var(impl.NewUint(1), names[8], "Most low priority generation requests sent to the upstream at once")
+	fs.Duration(names[9], time.Duration(int64(2000000000)), "How long no high priority generation request must be in flight before a low priority one is sent, so the steps of an agent's turn are not split by background work. Longer values delay background work more; 0 disables")
+	fs.Duration(names[10], time.Duration(int64(0)), "How long a low priority request may wait in the queue before it fails with 503 and Retry-After; 0 waits forever")
+	fs.StringSlice(names[11], nil, "Upstream paths whose POST requests are scheduled by priority. Other requests go straight to the upstream")
+	fs.Lookup(names[11]).DefValue = "[/v1/chat/completions,/v1/completions,/v1/embeddings,/v1/responses,/api/chat,/api/generate,/api/embed,/api/embeddings]"
 	return nil
 }
 
@@ -359,6 +388,18 @@ func configApplyPFlags(cfg *Config, fs *pflag.FlagSet, o *cpflag.Options, _ stri
 		}
 		cfg.HTTP.Port = v
 		set("http.port", configulator.LayerCLI, "--"+n)
+	}
+	if n := "http" + o.Separator + "shutdown-timeout"; fs.Changed(n) {
+		v, err := fs.GetDuration(n)
+		if err != nil {
+			return &configulator.ParseError{
+				Err:    err,
+				Path:   "http.shutdown-timeout",
+				Source: "--" + n,
+			}
+		}
+		cfg.HTTP.ShutdownTimeout = v
+		set("http.shutdown-timeout", configulator.LayerCLI, "--"+n)
 	}
 	if n := "metrics" + o.Separator + "enabled"; fs.Changed(n) {
 		v, err := fs.GetBool(n)
@@ -653,6 +694,22 @@ func (s *hTTPShadow) decodeJSON(dec *jsontext.Decoder, path string) error {
 			default:
 				return configJSONError(path+".port", v, fmt.Errorf("expected a number, got %v", v.Kind()))
 			}
+		case "shutdown-timeout":
+			v, err := dec.ReadToken()
+			if err != nil {
+				return err
+			}
+			switch v.Kind() {
+			case jsontext.KindNull:
+			case jsontext.KindString:
+				var slot impl.Duration
+				if err := slot.UnmarshalText([]byte(v.String())); err != nil {
+					return configJSONError(path+".shutdown-timeout", v, err)
+				}
+				s.ShutdownTimeout = &slot
+			default:
+				return configJSONError(path+".shutdown-timeout", v, fmt.Errorf("expected a text scalar (e.g. \"30s\"), got %v", v.Kind()))
+			}
 		default:
 			if reject, _ := json.GetOption(dec.Options(), json.RejectUnknownMembers); reject {
 				return &configulator.UnknownKeyError{Path: path + "." + configQuoteKey(key)}
@@ -861,6 +918,7 @@ func (c Config) PrintConfig() string {
 	fmt.Fprintf(&b, "log-level = %v\n", c.LogLevel)
 	fmt.Fprintf(&b, "http.bind = %v\n", c.HTTP.Bind)
 	fmt.Fprintf(&b, "http.port = %v\n", c.HTTP.Port)
+	fmt.Fprintf(&b, "http.shutdown-timeout = %v\n", c.HTTP.ShutdownTimeout)
 	fmt.Fprintf(&b, "metrics.enabled = %v\n", c.Metrics.Enabled)
 	fmt.Fprintf(&b, "metrics.bind = %v\n", c.Metrics.Bind)
 	fmt.Fprintf(&b, "metrics.port = %v\n", c.Metrics.Port)

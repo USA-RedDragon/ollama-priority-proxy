@@ -21,7 +21,6 @@ import (
 const (
 	readHeaderTimeout = 5 * time.Second
 	idleTimeout       = 2 * time.Minute
-	shutdownTimeout   = 5 * time.Second
 	healthPath        = "/health"
 	readyPath         = "/ready"
 )
@@ -34,7 +33,8 @@ type Upstream interface {
 
 // Server holds the proxy and metrics listeners.
 type Server struct {
-	servers []*http.Server
+	servers         []*http.Server
+	shutdownTimeout time.Duration
 }
 
 // Handler serves /health and /ready itself and sends every other request to
@@ -65,7 +65,7 @@ func addr(bind string, port uint16) string {
 // New returns a Server. The proxy listener has no WriteTimeout because
 // generation responses stream for minutes.
 func New(cfg *config.Config, upstream Upstream, gatherer prometheus.Gatherer) *Server {
-	s := &Server{servers: []*http.Server{{
+	s := &Server{shutdownTimeout: cfg.HTTP.ShutdownTimeout, servers: []*http.Server{{
 		Addr:              addr(cfg.HTTP.Bind, cfg.HTTP.Port),
 		Handler:           Handler(upstream),
 		ReadHeaderTimeout: readHeaderTimeout,
@@ -111,9 +111,10 @@ func (s *Server) Start() error {
 	return nil
 }
 
-// Stop shuts every listener down, waiting up to 5 seconds for requests.
+// Stop shuts every listener down, waiting up to http.shutdown-timeout for
+// requests in flight.
 func (s *Server) Stop() error {
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
 	defer cancel()
 	var g errgroup.Group
 	for _, srv := range s.servers {
