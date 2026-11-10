@@ -1,0 +1,31 @@
+# Sample configuration
+# Logging level. One of debug, info, warn or error
+log-level: "info"
+# Proxy listener
+http:
+  # Address to listen on. The default, [::], listens on all interfaces
+  bind: "[::]"
+  # Port to serve the proxy, /health and /ready on
+  port: 11434
+# Prometheus metrics listener
+metrics:
+  # Serve Prometheus metrics on /metrics
+  enabled: true
+  # Address for the metrics listener
+  bind: "[::]"
+  # Port for the metrics listener
+  port: 9090
+# Ollama server
+upstream:
+  # Base URL of the Ollama server
+  url: "http://127.0.0.1:11434"
+# Scheduling of low priority requests
+low:
+  # Most low priority generation requests sent to the upstream at once
+  max-in-flight: 1
+  # How long no high priority generation request must be in flight before a low priority one is sent, so the steps of an agent's turn are not split by background work. Longer values delay background work more; 0 disables
+  idle-grace: "2s"
+  # How long a low priority request may wait in the queue before it fails with 503 and Retry-After; 0 waits forever
+  max-wait: "0s"
+# Upstream paths whose POST requests are scheduled by priority. Other requests go straight to the upstream
+generation-paths: ["/v1/chat/completions", "/v1/completions", "/v1/embeddings", "/v1/responses", "/api/chat", "/api/generate", "/api/embed", "/api/embeddings"]
