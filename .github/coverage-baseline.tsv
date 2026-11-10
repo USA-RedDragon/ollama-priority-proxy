@@ -1,0 +1,7 @@
+cmd/root.go	37	0
+internal/config/config.go	15	15
+internal/metrics/metrics.go	12	7
+internal/proxy/proxy.go	136	127
+internal/scheduler/scheduler.go	64	62
+internal/server/server.go	39	37
+main.go	7	0
